@@ -10,6 +10,7 @@ import { EditorView } from '@tiptap/pm/view'
 import { Node } from '@tiptap/pm/model'
 import { fileToBase64 } from '../../../index'
 import { UploadedFile } from '../../../utils/useFileUpload'
+import { localFileMap } from './image/image-extension'
 
 export interface VideoExtensionOptions {
   /**
@@ -58,6 +59,11 @@ declare module '@tiptap/core' {
        * Set video floating
        */
       setVideoFloat: (float: 'left' | 'right' | null) => ReturnType
+
+      /**
+       * Re-upload a failed video using the file stored in localFileMap
+       */
+      reuploadVideo: (uploadId: string) => ReturnType
     }
   }
 }
@@ -205,6 +211,48 @@ export const VideoExtension = NodeExtension.create<VideoExtensionOptions>({
           }
           input.click()
           return true
+        },
+
+      reuploadVideo:
+        (uploadId: string) =>
+        ({ editor }) => {
+          const fileData = localFileMap.get(uploadId)
+          if (!fileData) {
+            console.error(
+              'reuploadVideo: no file found in localFileMap for uploadId',
+              uploadId,
+            )
+            return false
+          }
+
+          // Find the node position
+          let nodePos: number | null = null
+          editor.view.state.doc.descendants((node, pos) => {
+            if (
+              node.type.name === 'video' &&
+              node.attrs.uploadId === uploadId
+            ) {
+              nodePos = pos
+              return false
+            }
+          })
+
+          if (nodePos === null) {
+            console.error(
+              'reuploadVideo: could not find node with uploadId',
+              uploadId,
+            )
+            return false
+          }
+
+          // Re-run the upload using the stored file, replacing the node at its position
+          return uploadVideoBase(
+            fileData.file,
+            editor.view,
+            nodePos,
+            this.options,
+            'replace',
+          )
         },
     }
   },
@@ -374,8 +422,9 @@ function uploadVideoBase(
       const node = view.state.schema.nodes.video.create({
         loading: true,
         uploadId,
-        src: base64Result,
+        src: null,
       })
+      localFileMap.set(uploadId, { b64: base64Result, file })
 
       const tr = view.state.tr
       if (insertMode === 'replace') {

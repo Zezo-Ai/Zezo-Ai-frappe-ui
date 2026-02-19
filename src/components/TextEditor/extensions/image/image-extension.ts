@@ -237,19 +237,31 @@ export const ImageExtension = NodeExtension.create<ImageExtensionOptions>({
           // Find the node position
           let nodePos: number | null = null
           editor.view.state.doc.descendants((node, pos) => {
-            if (node.type.name === 'image' && node.attrs.uploadId === uploadId) {
+            if (
+              node.type.name === 'image' &&
+              node.attrs.uploadId === uploadId
+            ) {
               nodePos = pos
               return false
             }
           })
 
           if (nodePos === null) {
-            console.error('reuploadImage: could not find node with uploadId', uploadId)
+            console.error(
+              'reuploadImage: could not find node with uploadId',
+              uploadId,
+            )
             return false
           }
 
           // Re-run the upload using the stored file, replacing the node at its position
-          return uploadImageBase(fileData.file, editor.view, nodePos, this.options, 'replace')
+          return uploadImageBase(
+            fileData.file,
+            editor.view,
+            nodePos,
+            this.options,
+            'replace',
+          )
         },
     }
   },
@@ -425,7 +437,7 @@ function uploadImageBase(
         uploadId,
         src: null,
       })
-      localFileMap.set(uploadId, {b64: base64Result, file })
+      localFileMap.set(uploadId, { b64: base64Result, file })
 
       const tr = view.state.tr
       if (insertMode === 'replace') {
