@@ -414,6 +414,7 @@ function findInsertPosition(
 }
 
 // Base upload function shared by all image upload methods
+type ImageDimensions = { width: number | null; height: number | null }
 function uploadImageBase(
   file: File,
   view: EditorView,
@@ -432,12 +433,20 @@ function uploadImageBase(
 
   fileToBase64(file)
     .then((base64Result: string) => {
+      localFileMap.set(uploadId, { b64: base64Result, file })
+
+      return getImageDimensions(base64Result)
+        .catch(() => ({ width: null, height: null }))
+        .then((dimensions) => dimensions)
+    })
+    .then((dimensions: ImageDimensions) => {
       const node = view.state.schema.nodes.image.create({
         loading: true,
         uploadId,
         src: null,
+        width: dimensions.width,
+        height: dimensions.height,
       })
-      localFileMap.set(uploadId, { b64: base64Result, file })
 
       const tr = view.state.tr
       if (insertMode === 'replace') {
@@ -483,22 +492,6 @@ function uploadImageBase(
       }
 
       return options.uploadFunction(file)
-    })
-    .then((uploadedImage: UploadedFile) => {
-      return getImageDimensions(uploadedImage.file_url)
-        .then((dimensions) => {
-          return {
-            ...uploadedImage,
-            width: dimensions.width,
-            height: dimensions.height,
-          } as UploadedFile & { width: number; height: number }
-        })
-        .catch(() => {
-          return uploadedImage as UploadedFile & {
-            width: number
-            height: number
-          }
-        })
     })
     .then((uploadedImage) => {
       const transaction = view.state.tr
